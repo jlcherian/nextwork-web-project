@@ -18,4 +18,18 @@
   <build>
     <finalName>nextwork-web-project</finalName>
   </build>
+  <profiles>
+  <profile>
+    <id>nextwork-nextwork-devops-cicd</id>
+    <activation>
+      <activeByDefault>true</activeByDefault>
+    </activation>
+    <repositories>
+      <repository>
+        <id>nextwork-nextwork-devops-cicd</id>
+        <url>https://nextwork-558158825841.d.codeartifact.us-east-1.amazonaws.com/maven/nextwork-devops-cicd/</url>
+      </repository>
+    </repositories>
+  </profile>
+</profiles>
 </project>
