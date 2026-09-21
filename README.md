@@ -1,36 +1,52 @@
 # Java Web App Deployment with AWS CI/CD
 
-Welcome to this project combining Java web app development and AWS CI/CD tools!
+An end-to-end CI/CD pipeline on AWS that automatically builds a Java web app from GitHub and deploys it to Tomcat on Amazon EC2.
 
 <br>
 
 ## Table of Contents
 - [Introduction](#introduction)
+- [How the Pipeline Works](#how-the-pipeline-works)
 - [Technologies](#technologies)
 - [Setup](#setup)
+- [Troubleshooting Log](#troubleshooting-log)
 - [Contact](#contact)
 - [Conclusion](#conclusion)
 
 <br>
 
 ## Introduction
-This project is used for an introduction to creating and deploying a Java-based web app using AWS, especially their CI/CD tools.
+This project builds and deploys a Java-based web app using AWS's CI/CD tools.
 
-The deployment pipeline I'm building around the Java web app in this repository is invisible to the end-user, but makes a big impact by automating the software release processes.
+The end user never sees the deployment pipeline, but it automates the whole release process: every push to this repository is built, packaged, and deployed to EC2 with no manual steps.
+
+<br>
+
+## How the Pipeline Works
+
+```
+GitHub (push) → CodePipeline → CodeBuild → CodeDeploy → EC2 (Tomcat)
+```
+
+1. **Source:** A push to the `master` branch triggers CodePipeline.
+2. **Build:** CodeBuild pulls dependencies from CodeArtifact, compiles the app with Maven, and packages the WAR file, `appspec.yml`, and deployment scripts.
+3. **Deploy:** CodeDeploy copies the WAR to the EC2 instance and runs the lifecycle hooks in `scripts/`:
+   - `ApplicationStop`: stops Tomcat if it's running
+   - `BeforeInstall`: installs Tomcat if it's missing and clears the old app
+   - `ApplicationStart`: enables and restarts Tomcat to serve the new version
 
 <br>
 
 ## Technologies
-Here’s what I’m using for this project:
 
-- **Amazon EC2**: I'm developing my web app on Amazon EC2 virtual servers, so that software development and deployment happens entirely on the cloud.
-- **VS Code**: For my IDE, I chose Visual Studio Code. It connects directly to my development EC2 instance, making it easy to edit code and manage files in the cloud.
-- **GitHub**: All my web app code is stored and versioned in this GitHub repository.
-- **AWS CodeArtifact**: Will store my artifacts and dependencies, which is great for high availability and speeding up my project's build process.
-- **AWS CodeBuild**: Will take over my build process. It'll compile the source code, run tests, and produce ready-to-deploy software packages automatically.
-- **AWS CodeDeploy**: Will automate my deployment process across EC2 instances.
-- **AWS CodePipeline**: Will automate the entire process from GitHub to CodeDeploy, integrating build, test, and deployment steps into one efficient workflow.
-
+- **Amazon EC2**: Hosts both the development environment and the deployed app, so development and deployment happen entirely in the cloud.
+- **VS Code**: My IDE. It connects to my development EC2 instance over Remote-SSH, so I can edit code and manage files in the cloud.
+- **GitHub**: Stores and versions all of the app's code, and is the source stage of the pipeline.
+- **AWS CodeArtifact**: Stores the project's Maven dependencies, so builds are faster and don't rely on public repositories.
+- **AWS CodeBuild**: Compiles the source code, runs tests, and packages the app as a WAR file, using `buildspec.yml`.
+- **AWS CodeDeploy**: Deploys the WAR to Tomcat on EC2 using `appspec.yml`. Lifecycle hooks in `scripts/` install and restart Tomcat automatically.
+- **AWS CodePipeline**: Connects everything, so each push to GitHub automatically builds and deploys the app.
+- **AWS Systems Manager (Session Manager)**: Gives shell access to EC2 instances without SSH keys or an open port 22.
 
 <br>
 
@@ -52,14 +68,23 @@ To get this project up and running on your local machine, follow these steps:
 
 <br>
 
+## Troubleshooting Log
+Getting this pipeline working end to end meant fixing several real deployment failures:
+
+- **Deploy stage failing with "agent did not receive the lifecycle event":** The CodeDeploy agent was actually running; the real cause was network connectivity. I found this by connecting through SSM Session Manager, since the instance had been launched without a key pair.
+- **"AppSpec file not found" at BeforeInstall:** The repo had no `appspec.yml`, and `buildspec.yml` only packaged the WAR file. I added `appspec.yml` and included it in the build artifacts.
+- **App unreachable after a successful deployment:** Tomcat was never installed, so CodeDeploy was copying the WAR into a folder with nothing to serve it. I added a `BeforeInstall` hook that installs Tomcat automatically, and opened port 8080 in the security group.
+- **SSH timing out from VS Code:** The security group only allowed port 22 from an old IP address. I restricted the rule to my current IP rather than opening it to the internet.
+
+<br>
+
 ## Contact
-If you have any questions or comments about the NextWork Web Project, please contact:
+If you have any questions or comments about this project, please contact:
 Joel - [jlcherian@yahoo.com](mailto:jlcherian@yahoo.com)
 
 <br>
 
 ## Conclusion
-Thank you for exploring this project! I'll continue to build this pipeline and apply my learnings to future projects.
+Thank you for exploring this project! I'll keep improving this pipeline and apply what I learned to future projects.
 
 A big shoutout to **[NextWork](https://learn.nextwork.org/app)** for their project guide and support. [You can get started with this DevOps series project too by clicking here.](https://learn.nextwork.org/projects/aws-devops-vscode?track=high)
-
